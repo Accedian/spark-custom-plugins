@@ -5,6 +5,7 @@ import java.util
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 
 class CustomLoggingPlugin extends SparkPlugin {
+
   override def executorPlugin(): ExecutorPlugin = new CustomExecutorPlugin
 
   override def driverPlugin(): DriverPlugin = null
