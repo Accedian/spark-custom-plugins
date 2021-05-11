@@ -12,20 +12,22 @@ class CustomLoggingPlugin extends SparkPlugin {
 
   override def executorPlugin(): ExecutorPlugin = new CustomExecutorPlugin
 
-  override def driverPlugin(): DriverPlugin = null
+  override def driverPlugin(): DriverPlugin = new CustomDriverPlugin
 }
 
-class CustomExecutorPlugin extends ExecutorPlugin {
+class CustomExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
+    logInfo("init")
     SparkLoggingHelper.reconfigureLogging
   }
 
   override def shutdown(): Unit = super.shutdown()
 }
 
-class CustomDriverPlugin extends DriverPlugin {
+class CustomDriverPlugin extends DriverPlugin with Logging {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
+    logInfo("init")
     SparkLoggingHelper.reconfigureLogging
     super.init(sc, pluginContext)
   }
