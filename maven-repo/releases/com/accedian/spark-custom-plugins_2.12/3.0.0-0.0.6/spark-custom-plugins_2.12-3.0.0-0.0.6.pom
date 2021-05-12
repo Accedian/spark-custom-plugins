@@ -5,7 +5,7 @@
     <artifactId>spark-custom-plugins_2.12</artifactId>
     <packaging>jar</packaging>
     <description>spark-custom-plugins</description>
-    <version>3.0.0-1.0.0</version>
+    <version>3.0.0-0.0.6</version>
     <name>spark-custom-plugins</name>
     <organization>
         <name>com.accedian</name>
