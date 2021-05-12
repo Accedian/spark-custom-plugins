@@ -2,6 +2,8 @@ package com.accedian.npav
 
 import java.util
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.log4j.{LogManager, PropertyConfigurator}
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
@@ -10,19 +12,19 @@ import org.apache.spark.{SparkContext, SparkEnv, SparkFiles}
 
 class CustomLoggingPlugin extends SparkPlugin {
 
-  override def executorPlugin(): ExecutorPlugin = new CustomExecutorPlugin
+  override def executorPlugin(): ExecutorPlugin = new CustomExecutorLoggingPlugin
 
-  override def driverPlugin(): DriverPlugin = new CustomDriverPlugin
+  override def driverPlugin(): DriverPlugin = new CustomDriverLoggingPlugin
 }
 
-class CustomExecutorPlugin extends ExecutorPlugin with Logging {
+class CustomExecutorLoggingPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     logInfo("init")
 
     val thread = new Thread {
       override def run {
-        while (!SparkLoggingHelper.reconfigureLogging) {
+        while(!SparkLoggingHelper.reconfigureLogging) {
           Thread.sleep(5000)
         }
       }
@@ -35,7 +37,7 @@ class CustomExecutorPlugin extends ExecutorPlugin with Logging {
   override def shutdown(): Unit = super.shutdown()
 }
 
-class CustomDriverPlugin extends DriverPlugin with Logging {
+class CustomDriverLoggingPlugin extends DriverPlugin with Logging {
   override def init(sc: SparkContext, pluginContext: PluginContext): util.Map[String, String] = {
     logInfo("init")
     SparkLoggingHelper.reconfigureLogging
@@ -49,22 +51,38 @@ object SparkLoggingHelper extends Serializable with Logging {
   @volatile var reconfigured = false
 
   def reconfigureLogging(): Boolean = synchronized {
-    println("reconfigure logging")
     if (!reconfigured) {
-      val logConfigFilename = System.getProperty("log4j.configuration")
 
-      logInfo(s"logConfigFilename = $logConfigFilename")
-      if (SparkEnv.get != null && logConfigFilename != null) {
-        val absLogFilename = SparkFiles.get(logConfigFilename)
-        logInfo(s"absLogFilename = $absLogFilename")
-        if (new java.io.File(absLogFilename).exists) {
-          logInfo(s"updating log configuration to use $absLogFilename")
-          LogManager.resetConfiguration()
-          PropertyConfigurator.configure(absLogFilename)
-          reconfigured = true
+      val logConfigFilename = System.getProperty("log4j.configuration")
+      val absoluteConfigFilename: Option[String] = if (logConfigFilename != null) {
+        lazy val files = SparkEnv.get.conf.get("spark.files", "")
+        lazy val source = files.split(",").find(_.endsWith(logConfigFilename)).orNull
+        if (new java.io.File(logConfigFilename).exists) {
+          println(s"$logConfigFilename exists")
+          Some(logConfigFilename)
+        }
+        else if (source != null) {
+          val dest = SparkFiles.get(logConfigFilename)
+          val srcFS = new Path(source).getFileSystem(new Configuration())
+          println(s"Copying $source to $dest")
+          srcFS.copyToLocalFile(new Path(source), new Path(dest))
+          Some(dest)
+        }
+        else {
+          println("log4j config file not found")
+          None
         }
       }
+      else {
+        None
+      }
 
+      absoluteConfigFilename.foreach { f =>
+        println(s"Updating log configuration to use $f")
+        LogManager.resetConfiguration()
+        PropertyConfigurator.configure(f)
+        reconfigured = true
+      }
     }
     reconfigured
   }
