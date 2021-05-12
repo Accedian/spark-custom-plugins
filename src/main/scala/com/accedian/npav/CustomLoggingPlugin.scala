@@ -19,7 +19,17 @@ class CustomExecutorPlugin extends ExecutorPlugin with Logging {
 
   override def init(ctx: PluginContext, extraConf: util.Map[String, String]): Unit = {
     logInfo("init")
-    SparkLoggingHelper.reconfigureLogging
+
+    val thread = new Thread {
+      override def run {
+        while (!SparkLoggingHelper.reconfigureLogging) {
+          Thread.sleep(5000)
+        }
+      }
+    }
+    thread.setDaemon(true)
+    thread.start
+    super.init(ctx, extraConf)
   }
 
   override def shutdown(): Unit = super.shutdown()
@@ -38,7 +48,7 @@ class CustomDriverPlugin extends DriverPlugin with Logging {
 object SparkLoggingHelper extends Serializable with Logging {
   @volatile var reconfigured = false
 
-  def reconfigureLogging(): Unit = synchronized {
+  def reconfigureLogging(): Boolean = synchronized {
     println("reconfigure logging")
     if (!reconfigured) {
       val logConfigFilename = System.getProperty("log4j.configuration")
@@ -51,11 +61,12 @@ object SparkLoggingHelper extends Serializable with Logging {
           logInfo(s"updating log configuration to use $absLogFilename")
           LogManager.resetConfiguration()
           PropertyConfigurator.configure(absLogFilename)
+          reconfigured = true
         }
       }
 
     }
-    reconfigured = true
+    reconfigured
   }
 
 }
