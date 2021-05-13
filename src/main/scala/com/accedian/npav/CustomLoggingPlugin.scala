@@ -40,47 +40,60 @@ object SparkLoggingHelper extends Serializable with Logging {
   @volatile var reconfigured = false
 
   def reconfigureLogging(): Boolean = synchronized {
-    if (!reconfigured) try {
+    lazy val logConfigFilename = System.getProperty("log4j.configuration")
 
-      val logConfigFilename = System.getProperty("log4j.configuration")
-      val absoluteConfigFilename: Option[String] = if (logConfigFilename != null) {
-        lazy val files = SparkEnv.get.conf.get("spark.files", "")
-        lazy val source = files.split(",").find(_.endsWith(logConfigFilename)).orNull
+    if (!reconfigured && logConfigFilename != null) try {
 
-        if (new java.io.File(logConfigFilename).exists) {
-          // The file is already present in the working directory
-          println(s"$logConfigFilename exists")
-          Some(logConfigFilename)
-        }
-        else if (source != null) {
-          // Download the file and place it in the working directory
-          val dest = SparkFiles.get(logConfigFilename)
-          val srcFS = new Path(source).getFileSystem(new Configuration())
-          println(s"Copying $source to $dest")
-          srcFS.copyToLocalFile(new Path(source), new Path(dest))
-          Some(dest)
-        }
-        else {
-          println("log4j config file not found")
-          None
-        }
-      }
-      else {
-        None
-      }
 
-      absoluteConfigFilename.foreach { f =>
-        println(s"Updating log configuration to use $f")
-        LogManager.resetConfiguration()
-        PropertyConfigurator.configure(f)
-        reconfigured = true
+      if (SparkEnv.get.conf.get("spark.submit.deployMode", "").equals("client")) {
+        val th = new Thread {
+          override def run(): Unit = {
+            while(!new java.io.File(logConfigFilename).exists) {
+              Thread.sleep(1000)
+            }
+            resetLoggingAndConfigure(logConfigFilename)
+          }
+        }
+        th.setDaemon(true)
+        th.run()
+      } else {
+        fetchFile(logConfigFilename).foreach(f => resetLoggingAndConfigure(f))
       }
     }
     catch {
-      case ex:Throwable =>
-        logWarning("Failed to configure logging",ex)
+      case ex: Throwable =>
+        logWarning("Failed to configure logging", ex)
     }
     reconfigured
   }
 
+  private def resetLoggingAndConfigure(configFilename: String) = {
+    println(s"Updating log configuration to use $configFilename")
+    LogManager.resetConfiguration()
+    PropertyConfigurator.configure(configFilename)
+    reconfigured = true
+  }
+
+  private def fetchFile(logConfigFilename: String) = {
+    lazy val files = SparkEnv.get.conf.get("spark.files", "")
+    lazy val source = files.split(",").find(_.endsWith(logConfigFilename)).orNull
+
+    if (new java.io.File(logConfigFilename).exists) {
+      // The file is already present in the working directory
+      println(s"$logConfigFilename exists")
+      Some(logConfigFilename)
+    }
+    else if (source != null) {
+      // Download the file and place it in the working directory
+      val dest = SparkFiles.get(logConfigFilename)
+      val srcFS = new Path(source).getFileSystem(new Configuration())
+      println(s"Copying $source to $dest")
+      srcFS.copyToLocalFile(new Path(source), new Path(dest))
+      Some(dest)
+    }
+    else {
+      println("log4j config file not found")
+      None
+    }
+  }
 }
