@@ -55,7 +55,8 @@ object SparkLoggingHelper extends Serializable with Logging {
           }
         }
         th.setDaemon(true)
-        th.run()
+        th.setName("reconfigure logging")
+        th.start()
       } else {
         fetchFile(logConfigFilename).foreach(f => resetLoggingAndConfigure(f))
       }
