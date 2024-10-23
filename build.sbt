@@ -5,7 +5,7 @@ lazy val root = (project in file("."))
     name := "spark-custom-plugins",
     organization := "com.accedian",
     scalaVersion := "2.12.20",
-    version := "3.5.3-0.0.1",
+    version := "3.5.3-0.0.2",
     libraryDependencies ++= Seq( "org.apache.spark" %% "spark-core" % sparkVersion % "provided"
     )
   )

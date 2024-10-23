@@ -1,6 +1,7 @@
 package com.accedian.npav
 
 import java.util
+import java.io.File
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.logging.log4j.LogManager
@@ -8,8 +9,6 @@ import org.apache.logging.log4j.core.LoggerContext
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
 import org.apache.spark.{SparkContext, SparkEnv, SparkFiles}
-
-import java.io.File
 
 
 class CustomLoggingPlugin extends SparkPlugin {
