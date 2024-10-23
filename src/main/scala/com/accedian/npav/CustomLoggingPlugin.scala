@@ -77,6 +77,7 @@ object SparkLoggingHelper extends Serializable with Logging {
 
     // this will force a reconfiguration
     context.setConfigLocation(logFile.toURI())
+    println(s"Reconfiguring logging with  $configFilename is done")
     reconfigured = true
   }
 
