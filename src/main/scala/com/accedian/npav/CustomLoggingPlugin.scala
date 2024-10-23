@@ -40,7 +40,7 @@ object SparkLoggingHelper extends Serializable with Logging {
   @volatile var reconfigured = false
 
   def reconfigureLogging(): Boolean = synchronized {
-    lazy val logConfigFilename = System.getProperty("log4j.configuration")
+    lazy val logConfigFilename = System.getProperty("log4j2.configurationFile")
 
     if (!reconfigured && logConfigFilename != null) try {
 
