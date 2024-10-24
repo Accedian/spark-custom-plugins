@@ -1,10 +1,11 @@
 package com.accedian.npav
 
 import java.util
-
+import java.io.File
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.log4j.{LogManager, PropertyConfigurator}
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.core.LoggerContext
 import org.apache.spark.api.plugin.{DriverPlugin, ExecutorPlugin, PluginContext, SparkPlugin}
 import org.apache.spark.internal.Logging
 import org.apache.spark.{SparkContext, SparkEnv, SparkFiles}
@@ -40,7 +41,7 @@ object SparkLoggingHelper extends Serializable with Logging {
   @volatile var reconfigured = false
 
   def reconfigureLogging(): Boolean = synchronized {
-    lazy val logConfigFilename = System.getProperty("log4j.configuration")
+    lazy val logConfigFilename = System.getProperty("log4j2.configurationFile")
 
     if (!reconfigured && logConfigFilename != null) try {
 
@@ -70,8 +71,12 @@ object SparkLoggingHelper extends Serializable with Logging {
 
   private def resetLoggingAndConfigure(configFilename: String) = {
     println(s"Updating log configuration to use $configFilename")
-    LogManager.resetConfiguration()
-    PropertyConfigurator.configure(configFilename)
+    val context = LogManager.getContext(false).asInstanceOf[LoggerContext]
+    val logFile = new File(configFilename)
+
+    // this will force a reconfiguration
+    context.setConfigLocation(logFile.toURI())
+    println(s"Reconfiguring logging with  $configFilename is done")
     reconfigured = true
   }
 
@@ -93,7 +98,7 @@ object SparkLoggingHelper extends Serializable with Logging {
       Some(dest)
     }
     else {
-      println("log4j config file not found")
+      println("log4j2 config file not found")
       None
     }
   }
